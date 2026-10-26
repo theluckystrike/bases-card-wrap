@@ -209,3 +209,14 @@ export function describeRule(rule: ViewRule, label: (prop: string) => string = (
 	}
 	return parts.length ? parts.join(', ') : 'No change';
 }
+
+/**
+ * The guard step of one view. "ok" when the drawn cards fit their core slots. "wait" when they do not fit and the
+ * first miss of this view is less than waitMs ago (core can measure again, for example after styles.css loads), or
+ * when this is the first miss (firstMiss null). "pause" when they still do not fit waitMs after the first miss.
+ */
+export function guardStep(fits: boolean, firstMiss: number | null, now: number, waitMs: number): 'ok' | 'wait' | 'pause' {
+	if (fits) return 'ok';
+	if (firstMiss === null) return 'wait';
+	return now - firstMiss < waitMs ? 'wait' : 'pause';
+}

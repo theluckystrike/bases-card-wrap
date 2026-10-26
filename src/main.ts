@@ -5,7 +5,7 @@ import { setupHello } from './hello/index';
 import { SPONSORS, bindPro, isPro, onProChange, resetPro } from './pro';
 import { DEFAULT_SETTINGS, BasesCardWrapSettingTab, normalizeSettings, type BasesCardWrapSettings } from './settings';
 import { RuleModal } from './modal';
-import { effectiveRule, embedLinkPath, isEmptyRule, isPlanClass, propId, renameKeys, renameView, viewKey, viewPlan, type ViewPlan, type ViewRule } from './rules';
+import { effectiveRule, embedLinkPath, guardStep, isEmptyRule, isPlanClass, propId, renameKeys, renameView, viewKey, viewPlan, type ViewPlan, type ViewRule } from './rules';
 import WHATS_NEW from './whats-new.json';
 
 /** How often to ask the license state whether a check is due. It sends a request only when signed in and due (7 days). */
@@ -14,6 +14,8 @@ const PRO_TICK_MS = 6 * 60 * 60 * 1000;
 const MAX_BASE_BYTES = 1_000_000;
 /** Wait before the second guard check of a view whose cards did not fit. */
 const RECHECK_MS = 500;
+/** Wait after the last width or style change of a styled view before the scrollbar reset (one reset for each burst). */
+const RESET_MS = 150;
 const CARDS_VIEW = '.bases-view[data-view-type="cards"]';
 
 interface BaseInfo {
@@ -43,15 +45,18 @@ export default class BasesCardWrapPlugin extends Plugin {
 	private observers: MutationObserver[] = [];
 	private frame: number | null = null;
 	private unloaded = false;
-	/** Views where the cards did not fit the core slots: the plugin leaves them in the core look. */
-	private broken = new WeakSet<HTMLElement>();
+	/**
+	 * Views where the cards did not fit the core slots, with the paused view names: the plugin leaves those views in the
+	 * core look. Core keeps the element when the user selects another view in the same tab, so each view name counts.
+	 */
+	private broken = new WeakMap<HTMLElement, Set<string>>();
 	private loggedBroken = false;
-	/** Styled views whose drawn cards the guard has checked. Cleared on refresh(). */
-	private verified = new WeakSet<HTMLElement>();
-	/** Views that failed the check once. Core measures again before the guard pauses them (styles.css can load late). */
-	private rechecked = new WeakSet<HTMLElement>();
-	/** True while a styled view waits for its first drawn card and the guard check. */
-	private pendingVerify = false;
+	/** Styled views whose drawn cards the guard has checked, with the guard key (view name and plan). Cleared on refresh(). */
+	private verified = new WeakMap<HTMLElement, string>();
+	/** The time of the first miss of each view, for its guard key. Core measures again before the guard pauses a view (styles.css can load late). */
+	private missAt = new WeakMap<HTMLElement, { key: string; at: number }>();
+	/** Styled views that wait for their first drawn card or the guard check. Changes in their card container need a scan. */
+	private pending = new WeakSet<HTMLElement>();
 	/** View keys that the guard paused in this session. The settings list shows them as paused. */
 	paused = new Set<string>();
 	private noticeShown = false;
@@ -59,6 +64,14 @@ export default class BasesCardWrapPlugin extends Plugin {
 	private retries = new WeakMap<HTMLElement, number>();
 	private retryTimer: number | null = null;
 	private recheckTimer: number | null = null;
+	/** The time when the recheck timer fires. */
+	private recheckDue = 0;
+	/** One ResizeObserver for each window. It watches the width of each styled view. */
+	private resizeObservers = new Map<Window, ResizeObserver>();
+	private widths = new WeakMap<HTMLElement, number>();
+	/** Styled views that changed width or style. Their scrollbars get a reset after the burst. */
+	private resetViews = new Set<HTMLElement>();
+	private resetTimer: number | null = null;
 
 	async onload(): Promise<void> {
 		// First: "What's new" reads its state before the settings load (packages/hello). It does not wait.
@@ -113,6 +126,8 @@ export default class BasesCardWrapPlugin extends Plugin {
 			void pro.refresh();
 			this.registerInterval(window.setInterval(() => void pro.refresh(), PRO_TICK_MS));
 			this.observe(document);
+			// A theme or font size change can change the text width with the same view width.
+			this.registerEvent(this.app.workspace.on('css-change', () => this.resetLater(this.touched)));
 			this.registerEvent(this.app.workspace.on('window-open', (_w, win) => this.observe(win.document)));
 			this.schedule();
 		});
@@ -128,6 +143,11 @@ export default class BasesCardWrapPlugin extends Plugin {
 		this.retryTimer = null;
 		if (this.recheckTimer !== null) window.clearTimeout(this.recheckTimer);
 		this.recheckTimer = null;
+		for (const ro of this.resizeObservers.values()) ro.disconnect();
+		this.resizeObservers.clear();
+		if (this.resetTimer !== null) window.clearTimeout(this.resetTimer);
+		this.resetTimer = null;
+		this.resetViews.clear();
 		let changed = false;
 		for (const el of this.touched) changed = this.applyPlan(el, null) || changed;
 		this.touched.clear();
@@ -163,9 +183,10 @@ export default class BasesCardWrapPlugin extends Plugin {
 	/** Applies the rules again to every cards view. */
 	refresh(): void {
 		this.applied = new WeakMap();
-		this.broken = new WeakSet();
-		this.verified = new WeakSet();
-		this.rechecked = new WeakSet();
+		this.broken = new WeakMap();
+		this.verified = new WeakMap();
+		this.missAt = new WeakMap();
+		this.pending = new WeakSet();
 		this.paused.clear();
 		this.retries = new WeakMap();
 		this.schedule();
@@ -186,8 +207,8 @@ export default class BasesCardWrapPlugin extends Plugin {
 		const file = this.app.vault.getFileByPath(basePath);
 		void (async () => {
 			const info = file ? await this.readBase(file) : null;
-			const order = domIds ?? info?.views.find((v) => v.name === viewName)?.order ?? [];
-			const ids = order.map(propId);
+			const order = domIds ?? info?.views.find((v) => v.name === viewName)?.order ?? null;
+			const ids = (order ?? []).map(propId);
 			const label = (p: string): string => {
 				const name = info?.labels[p] ?? this.propLabel(p);
 				return ids[0] === p ? `${name} (title)` : name;
@@ -196,6 +217,7 @@ export default class BasesCardWrapPlugin extends Plugin {
 			new RuleModal(this.app, {
 				title: `Card wrap: ${viewName}`,
 				props: ids,
+				propsKnown: order !== null,
 				label,
 				initial: this.settings.views[key] ?? null,
 				onChange: async (rule) => {
@@ -238,14 +260,21 @@ export default class BasesCardWrapPlugin extends Plugin {
 			for (const r of records) {
 				const t = r.target.instanceOf(Element) ? r.target : r.target.parentElement;
 				// Cards come and go on each scroll. Only changes outside the card containers can add or change a view.
-				// A styled view that waits for its guard check still needs a scan when its first cards draw.
-				if (t && t.closest('.bases-cards-container') && !this.pendingVerify) continue;
+				// A styled view that waits for its guard check still needs a scan when its own cards draw.
+				const box = t?.closest('.bases-cards-container');
+				if (box && !this.isPending(box)) continue;
 				this.schedule();
 				return;
 			}
 		});
 		observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-view-name', 'data-view-type', 'src'] });
 		this.observers.push(observer);
+	}
+
+	/** True when the cards view of a card container waits for its guard check. */
+	private isPending(box: Element): boolean {
+		const view = box.closest<HTMLElement>('.bases-view');
+		return !!view && this.pending.has(view);
 	}
 
 	private schedule(): void {
@@ -281,9 +310,18 @@ export default class BasesCardWrapPlugin extends Plugin {
 		if (changed) this.app.workspace.trigger('css-change');
 		// Core lays the cards out again on css-change. Check each styled view that is not checked yet in the next frame.
 		let waiting = false;
-		for (const el of this.touched) if (el.isConnected && !this.verified.has(el)) waiting = true;
-		this.pendingVerify = waiting;
+		for (const el of this.touched) {
+			if (el.isConnected && this.verified.get(el) !== this.guardKey(el)) {
+				this.pending.add(el);
+				waiting = true;
+			} else this.pending.delete(el);
+		}
 		if (waiting) window.requestAnimationFrame(() => this.verify());
+	}
+
+	/** The view name and the plan of a styled view. A new view in the same element, or a new plan, needs a new check. */
+	private guardKey(el: HTMLElement): string {
+		return `${el.getAttribute('data-view-name') ?? ''}\n${this.applied.get(el) ?? ''}`;
 	}
 
 	/**
@@ -293,39 +331,58 @@ export default class BasesCardWrapPlugin extends Plugin {
 	private verify(): void {
 		if (this.unloaded) return;
 		let changed = false;
-		let waiting = false;
-		let recheck = false;
+		let due = Infinity;
+		const now = Date.now();
 		for (const el of Array.from(this.touched)) {
-			if (!el.isConnected || !el.hasClass('bcw-on') || this.verified.has(el)) continue;
+			if (!el.isConnected || !el.hasClass('bcw-on')) continue;
+			const key = this.guardKey(el);
+			if (this.verified.get(el) === key) {
+				this.pending.delete(el);
+				continue;
+			}
 			// No drawn card yet (the base opens, or the view is hidden): check when the cards draw.
 			if (!hasDrawnCard(el)) {
-				waiting = true;
+				this.pending.add(el);
 				continue;
 			}
-			if (!cardsFit(el) && !this.rechecked.has(el)) {
-				// First miss: let core measure again (for example after styles.css loads), then check again.
-				this.rechecked.add(el);
-				waiting = true;
-				recheck = true;
+			const miss = this.missAt.get(el);
+			const first = miss && miss.key === key ? miss.at : null;
+			const step = guardStep(cardsFit(el), first, now, RECHECK_MS);
+			if (step === 'wait') {
+				// A miss: let core measure again (for example after styles.css loads). Check again RECHECK_MS after the first miss of this view.
+				if (first === null) this.missAt.set(el, { key, at: now });
+				this.pending.add(el);
+				due = Math.min(due, (first ?? now) + RECHECK_MS);
 				continue;
 			}
-			this.verified.add(el);
-			if (!cardsFit(el)) {
-				this.broken.add(el);
+			this.verified.set(el, key);
+			this.pending.delete(el);
+			this.missAt.delete(el);
+			if (step === 'pause') {
+				const names = this.broken.get(el) ?? new Set<string>();
+				names.add(el.getAttribute('data-view-name') ?? '');
+				this.broken.set(el, names);
 				changed = this.applyPlan(el, null) || changed;
 				this.pause(el);
 			}
 		}
-		this.pendingVerify = waiting;
 		if (changed) this.app.workspace.trigger('css-change');
-		if (recheck && this.recheckTimer === null) {
-			this.recheckTimer = window.setTimeout(() => {
-				this.recheckTimer = null;
-				if (this.unloaded) return;
-				this.app.workspace.trigger('css-change');
-				window.requestAnimationFrame(() => this.verify());
-			}, RECHECK_MS);
+		if (due !== Infinity) this.recheckAt(due);
+	}
+
+	/** Runs the guard again at the time due (one timer; an earlier time moves it). */
+	private recheckAt(due: number): void {
+		if (this.recheckTimer !== null) {
+			if (this.recheckDue <= due) return;
+			window.clearTimeout(this.recheckTimer);
 		}
+		this.recheckDue = due;
+		this.recheckTimer = window.setTimeout(() => {
+			this.recheckTimer = null;
+			if (this.unloaded) return;
+			this.app.workspace.trigger('css-change');
+			window.requestAnimationFrame(() => this.verify());
+		}, Math.max(0, due - Date.now()));
 	}
 
 	/** Marks the rule of a view as paused, with one notice and one debug line in each session. */
@@ -361,7 +418,7 @@ export default class BasesCardWrapPlugin extends Plugin {
 	}
 
 	private planFor(el: HTMLElement): ViewPlan | null {
-		if (this.broken.has(el)) return null;
+		if (this.broken.get(el)?.has(el.getAttribute('data-view-name') ?? '')) return null;
 		const ctx = this.contextOf(el);
 		if (!ctx) return null;
 		const rule = effectiveRule(this.settings.views, this.settings.vaultDefault, ctx.basePath, ctx.viewName, isPro());
@@ -431,11 +488,53 @@ export default class BasesCardWrapPlugin extends Plugin {
 			el.setCssProps(plan.vars);
 			this.applied.set(el, sig);
 			this.touched.add(el);
+			this.watchWidth(el);
+			resetScrollbars([el]);
 		} else {
 			this.applied.delete(el);
 			this.touched.delete(el);
+			this.pending.delete(el);
+			this.resizeObservers.get(el.win)?.unobserve(el);
+			this.widths.delete(el);
 		}
 		return true;
+	}
+
+	/** Watches the width of a styled view. A new width gives a scrollbar reset after the burst. */
+	private watchWidth(el: HTMLElement): void {
+		const win = el.win;
+		let ro = this.resizeObservers.get(win);
+		if (!ro) {
+			const RO = (win as Window & { ResizeObserver: typeof ResizeObserver }).ResizeObserver;
+			ro = new RO((entries: ResizeObserverEntry[]) => {
+				const changed: HTMLElement[] = [];
+				for (const entry of entries) {
+					const view = entry.target as HTMLElement;
+					const w = Math.round(entry.contentRect.width);
+					const old = this.widths.get(view);
+					this.widths.set(view, w);
+					if (old !== undefined && old !== w) changed.push(view);
+				}
+				if (changed.length) this.resetLater(changed);
+			});
+			this.resizeObservers.set(win, ro);
+		}
+		ro.observe(el);
+	}
+
+	/** Resets the scrollbars of the views RESET_MS after the last call (one reset for each burst of changes). */
+	private resetLater(views: Iterable<HTMLElement>): void {
+		if (this.unloaded) return;
+		for (const el of views) this.resetViews.add(el);
+		if (this.resetViews.size === 0) return;
+		if (this.resetTimer !== null) window.clearTimeout(this.resetTimer);
+		this.resetTimer = window.setTimeout(() => {
+			this.resetTimer = null;
+			if (this.unloaded) return;
+			const els = Array.from(this.resetViews).filter((el) => el.isConnected && this.touched.has(el));
+			this.resetViews.clear();
+			resetScrollbars(els);
+		}, RESET_MS);
 	}
 
 	private async readBase(file: TFile): Promise<BaseInfo | null> {
@@ -478,6 +577,17 @@ export default class BasesCardWrapPlugin extends Plugin {
 	private forgetBases(path: string): void {
 		for (const key of Array.from(this.bases.keys())) if (key === path || key.startsWith(`${path}/`)) this.bases.delete(key);
 	}
+}
+
+/**
+ * A scroll box keeps its scrollbar when it grows or gets wider (both layouts are stable). One layout with no scrollbar
+ * resets it: the views get the class bcw-relayout for one forced layout.
+ */
+function resetScrollbars(views: HTMLElement[]): void {
+	if (views.length === 0) return;
+	for (const el of views) el.addClass('bcw-relayout');
+	void views[0]!.offsetHeight;
+	for (const el of views) el.removeClass('bcw-relayout');
 }
 
 /** The first card that core drew in a cards view (not the hidden test card), or null. */

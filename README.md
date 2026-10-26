@@ -28,7 +28,7 @@ The wrap mode shows the value to its end in a box of up to 10 lines. When the va
 
 ### One rule for each view
 
-Run the command "Set card wrap for this view" in a base. A window opens with one row for all properties and one row for each property of the view, in the order of the cards. The first property is the card title. A change shows on the cards at once. Other views of the same base keep their own rules.
+Run the command "Set card wrap for this view" in a base. A window opens with one row for all properties and one row for each property of the view, in the order of the cards. The first property is the card title. A change shows on the cards at once. Other views of the same base keep their own rules. When a rule belongs to a property that is not on the cards, for example after you rename the property, the window shows it in its own row. Select the trash icon to delete that rule.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/bases-card-wrap/HEAD/docs/rule-modal.png" alt="The rule window with a row for each property of the view" width="720">
 
@@ -54,7 +54,7 @@ The settings list each view that has a rule. Select a row to edit the rule. Dele
 2. Select Browse and search for "Bases Card Wrap".
 3. Select Install, then Enable.
 
-The plugin needs Obsidian 1.13.4 or later. It is not desktop only, and it uses no desktop API. The tests run on desktop Obsidian only.
+The plugin needs Obsidian 1.13.4 or later. It is not desktop only, and it uses no desktop API. The tests run on desktop Obsidian 1.13.4 and the latest public version. On the latest version, a test in mobile emulation checks that a rule wraps the quote and the cards do not overlap. The emulation is not a real phone.
 
 ## Usage
 

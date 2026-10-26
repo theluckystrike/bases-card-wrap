@@ -161,8 +161,10 @@
 	--bcw-n: var(--bcw-n-40, 1);
 }
 
-/* Clamp and scroll: the text wraps in a box of the line count. The first line keeps the core line height.
-   One more line is line-height times 1em (the same as 1lh) in older WebViews without the lh unit. */
+/* Clamp and scroll: the text wraps in a box of the line count. The first line keeps the core line height, or one line
+   when that is taller. The space above the first line is half of the space that the first line does not use, so N lines
+   of text fit in the box with no bottom padding. One more line is line-height times 1em (the same as 1lh) in older
+   WebViews without the lh unit. */
 .bases-view.bcw-c-1 .bases-cards-item > .bases-cards-property:nth-child(1 of .bases-cards-property) > .bases-cards-line,
 .bases-view.bcw-c-2 .bases-cards-item > .bases-cards-property:nth-child(2 of .bases-cards-property) > .bases-cards-line,
 .bases-view.bcw-c-3 .bases-cards-item > .bases-cards-property:nth-child(3 of .bases-cards-property) > .bases-cards-line,
@@ -243,7 +245,9 @@
 .bases-view.bcw-s-38 .bases-cards-item > .bases-cards-property:nth-child(38 of .bases-cards-property) > .bases-cards-line,
 .bases-view.bcw-s-39 .bases-cards-item > .bases-cards-property:nth-child(39 of .bases-cards-property) > .bases-cards-line,
 .bases-view.bcw-s-40 .bases-cards-item > .bases-cards-property:nth-child(40 of .bases-cards-property) > .bases-cards-line {
-	height: calc(var(--bases-cards-line-height, 24px) + (var(--bcw-n) - 1) * var(--line-height-tight) * 1em);
+	height: calc(max(var(--bases-cards-line-height, 24px), var(--line-height-tight) * 1em) + (var(--bcw-n) - 1) * var(--line-height-tight) * 1em);
+	padding-top: max(0px, (var(--bases-cards-line-height, 24px) - var(--line-height-tight) * 1em) / 2);
+	padding-bottom: 0;
 	line-height: var(--line-height-tight);
 	text-overflow: clip;
 	white-space: normal;
@@ -347,7 +351,7 @@
  * and the font size of the rendered values, so one line has the same height as on a real card.
  */
 .bases-view.bcw-on .bases-cards-group[style*="opacity: 0;"] > .bases-cards-item > .bases-cards-property:nth-child(2 of .bases-cards-property) > .bases-cards-line {
-	height: calc(var(--bases-cards-line-height, 24px) + (var(--bcw-slot, 1) - 1) * var(--line-height-tight) * 1em);
+	height: calc(max(var(--bases-cards-line-height, 24px), var(--line-height-tight) * 1em) + (var(--bcw-slot, 1) - 1) * var(--line-height-tight) * 1em);
 	font-size: var(--bases-table-font-size);
 	line-height: var(--line-height-tight);
 }
@@ -434,12 +438,18 @@
 	.bases-view.bcw-s-38 .bases-cards-item > .bases-cards-property:nth-child(38 of .bases-cards-property) > .bases-cards-line,
 	.bases-view.bcw-s-39 .bases-cards-item > .bases-cards-property:nth-child(39 of .bases-cards-property) > .bases-cards-line,
 	.bases-view.bcw-s-40 .bases-cards-item > .bases-cards-property:nth-child(40 of .bases-cards-property) > .bases-cards-line {
-		height: calc(var(--bases-cards-line-height, 24px) + (var(--bcw-n) - 1) * 1lh);
+		height: calc(max(var(--bases-cards-line-height, 24px), 1lh) + (var(--bcw-n) - 1) * 1lh);
+		padding-top: max(0px, (var(--bases-cards-line-height, 24px) - 1lh) / 2);
 	}
 
 	.bases-view.bcw-on .bases-cards-group[style*="opacity: 0;"] > .bases-cards-item > .bases-cards-property:nth-child(2 of .bases-cards-property) > .bases-cards-line {
-		height: calc(var(--bases-cards-line-height, 24px) + (var(--bcw-slot, 1) - 1) * 1lh);
+		height: calc(max(var(--bases-cards-line-height, 24px), 1lh) + (var(--bcw-slot, 1) - 1) * 1lh);
 	}
+}
+
+/* For one layout after a plan change: no scrollbar, so a scroll box that grew does not keep the scrollbar of its old size. */
+.bases-view.bcw-on.bcw-relayout .bases-cards-container .bases-cards-group .bases-cards-item > .bases-cards-property:nth-child(n of .bases-cards-property) > .bases-cards-line {
+	overflow-y: hidden;
 }
 
 /* NoteMods What's new tab and settings card */

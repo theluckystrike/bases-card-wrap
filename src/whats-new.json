@@ -1,8 +1,12 @@
 {
 	"id": "bases-card-wrap",
 	"name": "Bases Card Wrap",
-	"version": "1.0.0",
-	"changes": [],
+	"version": "1.0.1",
+	"changes": [
+		"The wrap box no longer shows a scrollbar and hides the last line when the value fits.",
+		"The rule window lists a rule of a property that is not on the cards. Select the trash icon to delete it.",
+		"The layout check runs again when you select another view, and a view with no cards adds no scroll work."
+	],
 	"tip": "Open a base in cards view and run the command \"Set card wrap for this view\". Each view of each base keeps its own rule.",
 	"thanks": "Hi, I am Michael, a solo developer in Poland. Bases Card Wrap is one of over 100 small plugins that I make. Thank you for trusting it with your notes.",
 	"related": [

@@ -11,6 +11,8 @@ export interface RuleModalOptions {
 	title: string;
 	/** Property ids in card order, such as "file.name" and "note.quote". */
 	props: string[];
+	/** True when props is the full list of the view. Then a rule of a property that is not in props shows as a row to delete. */
+	propsKnown?: boolean;
 	label: (prop: string) => string;
 	initial: ViewRule | null;
 	/** Called after each change, with the full rule. The cards follow at once. */
@@ -54,6 +56,24 @@ export class RuleModal extends Modal {
 				else props[prop] = r;
 				this.rule = { ...this.rule, props };
 			});
+		}
+		if (!this.opts.propsKnown) return;
+		// A rule of a property that is not on the cards (for example after a rename of the property) does nothing.
+		for (const prop of Object.keys(this.rule.props)) {
+			if (this.opts.props.includes(prop)) continue;
+			const setting = new Setting(contentEl).setName(this.opts.label(prop)).setDesc('Not on the cards of this view, so this rule does nothing.');
+			setting.settingEl.addClass('bcw-orphan-row');
+			setting.addExtraButton((b) =>
+				b
+					.setIcon('trash')
+					.setTooltip('Delete this rule')
+					.onClick(() => {
+						const props = { ...this.rule.props };
+						delete props[prop];
+						this.rule = { ...this.rule, props };
+						void this.commit();
+					}),
+			);
 		}
 	}
 

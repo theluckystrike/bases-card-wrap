@@ -1,6 +1,6 @@
 // End-to-end smoke test in a real Obsidian (wdio-obsidian-service). Run: npm run build && npm run test:e2e
 // OBSIDIAN_VERSIONS is a space separated list of app/installer pairs. CI runs "earliest/earliest" and
-// "latest/latest" on ubuntu-latest under Xvfb. "earliest" is exactly manifest minAppVersion: fx check
+// "latest/latest" on ubuntu-latest under Xvfb, and "latest" once more in mobile emulation. "earliest" is exactly manifest minAppVersion: fx check
 // (tools/min-app-version.mjs) requires it to be the first PUBLIC release at or above the API floor, because
 // Obsidian ships most x.y.0 to x.y.3 builds to Insiders only and those need an account to download.
 // Set OBSIDIAN_EMAIL and OBSIDIAN_PASSWORD (an Insiders account) and OBSIDIAN_ALLOW_BETA=1 to test an Insiders floor.
@@ -34,13 +34,16 @@ export const config: WebdriverIO.Config = {
 	framework: 'mocha',
 	specs: ['./test/e2e/**/*.e2e.ts'],
 	maxInstances: Number(process.env.WDIO_MAX_INSTANCES ?? 1),
-	capabilities: versions.map(([appVersion, installerVersion]) => ({
+	// Each version runs in the desktop layout. The latest version also runs in mobile emulation (emulateMobile sets the
+	// same flag as app.emulateMobile(true)). Emulation is not a real phone.
+	capabilities: [...versions.map(([v, i]) => [v, i, false] as const), ...versions.filter(([v]) => v === 'latest').map(([v, i]) => [v, i, true] as const)].map(([appVersion, installerVersion, emulateMobile]) => ({
 		browserName: 'obsidian',
 		browserVersion: appVersion,
 		'wdio:obsidianOptions': {
 			installerVersion,
 			plugins: ['.'],
 			vault: 'test/e2e/vault',
+			emulateMobile,
 		},
 	})),
 	services: ['obsidian'],

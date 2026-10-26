@@ -352,6 +352,348 @@ describe(`${pluginId} card wrap`, function () {
 		}
 	});
 
+	it('A12 guard after a view switch in the same tab: the new view gets its own check', async function () {
+		const plainKey = `${BASE}${SEP}Plain`;
+		await setRule(KEY, { props: { 'note.author': { mode: 'clamp', lines: 3 } }, all: { mode: 'core', lines: 3 } });
+		await setRule(plainKey, { props: { 'note.quote': { mode: 'clamp', lines: 2 } }, all: { mode: 'core', lines: 3 } });
+		await openBase();
+		// Let the guard check the first view (it fits).
+		await browser.pause(1200);
+		expect((await probe())!.on).toBe(true);
+		await browser.executeObsidian(({ app }, id) => {
+			(app as unknown as { plugins: { plugins: Record<string, { noticeShown: boolean }> } }).plugins.plugins[id]!.noticeShown = false;
+		}, pluginId);
+		// Force a mismatch only in the view "Plain".
+		await browser.execute(() => {
+			const st = document.createElement('style');
+			st.id = 'bcw-force-mismatch';
+			st.textContent = '.bases-view.bcw-on[data-view-name="Plain"] .bases-cards-property[data-property="note.quote"] > .bases-cards-line { height: 300px !important; }';
+			document.head.appendChild(st);
+		});
+		try {
+			await browser.executeObsidian(async ({ app }, path) => {
+				const leaf = app.workspace.getLeaf(false);
+				await leaf.setViewState({ type: 'bases', state: { file: path, viewName: 'Plain' } });
+			}, BASE);
+			await browser.waitUntil(async () => (await browser.execute(() => document.querySelector('.workspace-leaf.mod-active .bases-view')?.getAttribute('data-view-name'))) === 'Plain', { timeout: 10000 });
+			await browser.waitUntil(async () => (await probe())?.on === false && (await lastNoticeText()).includes('view "Plain"'), { timeout: 5000, timeoutMsg: 'guard did not check the view after the switch' });
+			checkGrid((await probe())!);
+		} finally {
+			await browser.execute(() => document.getElementById('bcw-force-mismatch')?.remove());
+			await setRule(plainKey, null);
+		}
+	});
+
+	it('A1 wrap 3 then wrap 10: a value near the edge of 10 lines shows in full with no scrollbar', async function () {
+		await openBase();
+		await setRule(KEY, { props: { 'note.quote': { mode: 'wrap', lines: 10 } }, all: { mode: 'core', lines: 3 } });
+		// Find a word spacing that puts the Seneca quote on the edge: it fits in 10 lines at the full width, but not at the width less one scrollbar.
+		const found = await browser.execute(() => {
+			const card = Array.from(document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active .bases-cards-item')).find((c) => c.innerText.includes('Seneca'))!;
+			const line = card.querySelectorAll<HTMLElement>('.bases-cards-line')[1]!;
+			const probeBox = document.body.createDiv();
+			probeBox.setCssStyles({ position: 'absolute', overflowY: 'scroll', width: '100px', height: '50px', visibility: 'hidden' });
+			const sbar = probeBox.offsetWidth - probeBox.clientWidth;
+			probeBox.remove();
+			const box = line.clientHeight;
+			const width = line.offsetWidth;
+			const clone = line.cloneNode(true) as HTMLElement;
+			clone.setCssStyles({ position: 'absolute', visibility: 'hidden', height: 'auto', overflowY: 'visible' });
+			line.parentElement!.appendChild(clone);
+			const at = (w: number, ws: number): number => {
+				clone.setCssStyles({ width: `${w}px`, wordSpacing: `${ws}px` });
+				return clone.offsetHeight;
+			};
+			let ws = -1;
+			for (let s = 0; s <= 12 && sbar > 0; s += 0.25) {
+				if (at(width, s) <= box && at(width - sbar, s) > box) {
+					ws = s;
+					break;
+				}
+			}
+			clone.remove();
+			return { ws, sbar, box, width };
+		});
+		console.log(`A1 edge: ${JSON.stringify(found)}`);
+		expect(found.sbar).toBeGreaterThan(0);
+		expect(found.ws).toBeGreaterThanOrEqual(0);
+		await browser.execute((ws: number) => {
+			const st = document.createElement('style');
+			st.id = 'bcw-edge-spacing';
+			st.textContent = `.bases-cards-line { word-spacing: ${ws}px; }`;
+			document.head.appendChild(st);
+		}, found.ws);
+		try {
+			await setRule(KEY, { props: { 'note.quote': { mode: 'wrap', lines: 3 } }, all: { mode: 'core', lines: 3 } });
+			await setRule(KEY, { props: { 'note.quote': { mode: 'wrap', lines: 10 } }, all: { mode: 'core', lines: 3 } });
+			await browser.pause(500);
+			const r = await browser.execute(() => {
+				const card = Array.from(document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active .bases-cards-item')).find((c) => c.innerText.includes('Seneca'))!;
+				const line = card.querySelectorAll<HTMLElement>('.bases-cards-line')[1]!;
+				return { h: line.clientHeight, sh: line.scrollHeight, bar: line.offsetWidth - line.clientWidth };
+			});
+			expect(r.bar).toBe(0);
+			expect(r.sh).toBeLessThanOrEqual(r.h + 1);
+		} finally {
+			await browser.execute(() => document.getElementById('bcw-edge-spacing')?.remove());
+		}
+	});
+
+	it('A1 width change: a value at the edge of 10 lines shows in full with no scrollbar after the pane gets narrower and wider again', async function () {
+		const mobile = await browser.executeObsidian(({ obsidian }) => obsidian.Platform.isMobile);
+		await openBase();
+		// Desktop: start with the left sidebar collapsed, so the sidebar can make the pane narrower.
+		if (!mobile) {
+			await browser.executeObsidian(({ app }) => (app.workspace.leftSplit as unknown as { collapse(): void }).collapse());
+			await browser.pause(800);
+		}
+		await setRule(KEY, { props: { 'note.quote': { mode: 'wrap', lines: 10 } }, all: { mode: 'core', lines: 3 } });
+		const seneca = (): { h: number; sh: number; bar: number; w: number } => {
+			const card = Array.from(document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active .bases-cards-item')).find((c) => c.innerText.includes('Seneca'))!;
+			const line = card.querySelectorAll<HTMLElement>('.bases-cards-line')[1]!;
+			return { h: line.clientHeight, sh: line.scrollHeight, bar: line.offsetWidth - line.clientWidth, w: line.offsetWidth };
+		};
+		// A word spacing that fits the quote in 10 lines at this width, but not at this width less one scrollbar.
+		const ws = await browser.execute(() => {
+			const card = Array.from(document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active .bases-cards-item')).find((c) => c.innerText.includes('Seneca'))!;
+			const line = card.querySelectorAll<HTMLElement>('.bases-cards-line')[1]!;
+			const probeBox = document.body.createDiv();
+			probeBox.setCssStyles({ position: 'absolute', overflowY: 'scroll', width: '100px', height: '50px', visibility: 'hidden' });
+			const sbar = probeBox.offsetWidth - probeBox.clientWidth;
+			probeBox.remove();
+			const clone = line.cloneNode(true) as HTMLElement;
+			clone.setCssStyles({ position: 'absolute', visibility: 'hidden', height: 'auto', overflowY: 'visible' });
+			line.parentElement!.appendChild(clone);
+			let found = -1;
+			for (let s = 0; s <= 16 && sbar > 0; s += 0.25) {
+				clone.setCssStyles({ width: `${line.offsetWidth}px`, wordSpacing: `${s}px` });
+				const full = clone.offsetHeight;
+				clone.setCssStyles({ width: `${line.offsetWidth - sbar}px` });
+				if (full <= line.clientHeight && clone.offsetHeight > line.clientHeight) {
+					found = s;
+					break;
+				}
+			}
+			clone.remove();
+			return found;
+		});
+		expect(ws).toBeGreaterThanOrEqual(0);
+		await browser.execute((w: number) => {
+			const st = document.createElement('style');
+			st.id = 'bcw-edge-spacing';
+			st.textContent = `.bases-cards-line { word-spacing: ${w}px; }`;
+			document.head.appendChild(st);
+		}, ws);
+		try {
+			await browser.pause(400);
+			const start = await browser.execute(seneca);
+			expect(start.bar).toBe(0);
+			if (!mobile) {
+				// Open the left sidebar (narrower pane), then collapse it again (the width comes back).
+				await browser.executeObsidian(({ app }) => (app.workspace.leftSplit as unknown as { expand(): void }).expand());
+				await browser.pause(800);
+				const narrow = await browser.execute(seneca);
+				await browser.executeObsidian(({ app }) => (app.workspace.leftSplit as unknown as { collapse(): void }).collapse());
+				await browser.pause(800);
+				const back = await browser.execute(seneca);
+				console.log(`A1 sidebar: ${JSON.stringify({ ws, start, narrow, back })}`);
+				expect(back.bar).toBe(0);
+				expect(back.sh).toBeLessThanOrEqual(back.h + 1);
+			}
+			// Make the view narrower with CSS until the quote box gets a scrollbar, then give the width back.
+			const narrowed = await browser.executeAsync((done: (r: { steps: number; bar: number }) => void) => {
+				const v = Array.from(document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active .bases-view')).find((x) => x.offsetParent !== null)!;
+				const full = v.offsetWidth;
+				let steps = 0;
+				const step = (): void => {
+					const card = Array.from(v.querySelectorAll<HTMLElement>('.bases-cards-item')).find((c) => c.innerText.includes('Seneca'));
+					const line = card?.querySelectorAll<HTMLElement>('.bases-cards-line')[1];
+					const bar = line ? line.offsetWidth - line.clientWidth : 0;
+					if (bar > 0 || steps >= 40) {
+						done({ steps, bar });
+						return;
+					}
+					steps++;
+					v.style.setProperty('width', `${full - steps * 8}px`);
+					setTimeout(step, 150);
+				};
+				step();
+			});
+			await browser.execute(() => {
+				const v = Array.from(document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active .bases-view')).find((x) => x.offsetParent !== null)!;
+				v.style.removeProperty('width');
+			});
+			await browser.pause(800);
+			const after = await browser.execute(seneca);
+			console.log(`A1 css width: ${JSON.stringify({ ws, start, narrowed, after })}`);
+			expect(narrowed.bar).toBeGreaterThan(0);
+			expect(after.bar).toBe(0);
+			expect(after.sh).toBeLessThanOrEqual(after.h + 1);
+		} finally {
+			await browser.execute(() => document.getElementById('bcw-edge-spacing')?.remove());
+		}
+	});
+
+	it('A1 a box of N lines holds N lines of text', async function () {
+		await openBase();
+		for (const n of [3, 10]) {
+			await setRule(KEY, { props: { 'note.quote': { mode: 'wrap', lines: n } }, all: { mode: 'core', lines: 3 } });
+			// Natural height of exactly n lines: a copy of the line with words added until it has n lines.
+			const r = await browser.execute((lines: number) => {
+				const card = Array.from(document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active .bases-cards-item')).find((c) => c.innerText.includes('Seneca'))!;
+				const line = card.querySelectorAll<HTMLElement>('.bases-cards-line')[1]!;
+				const clone = line.cloneNode(true) as HTMLElement;
+				clone.setCssStyles({ position: 'absolute', visibility: 'hidden', height: 'auto', overflowY: 'visible', width: `${line.offsetWidth}px` });
+				line.parentElement!.appendChild(clone);
+				const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+				const text = walker.nextNode() as Text;
+				const heights: number[] = [];
+				let words = '';
+				for (let i = 0; i < 600 && heights.length <= lines; i++) {
+					words += 'word ';
+					text.data = words;
+					const h = clone.offsetHeight;
+					if (heights.length === 0 || h > heights[heights.length - 1]!) heights.push(h);
+				}
+				clone.remove();
+				const cs = getComputedStyle(line);
+				const inner = Array.from(line.querySelectorAll<HTMLElement>('*')).slice(0, 3).map((e) => { const c = getComputedStyle(e); return `${e.tagName}.${e.className} ${c.display} m${c.marginTop}/${c.marginBottom} p${c.paddingTop}/${c.paddingBottom} lh${c.lineHeight}`; });
+				return { box: line.clientHeight, need: heights[lines - 1] ?? 0, heights, pad: `${cs.paddingTop}/${cs.paddingBottom}`, lh: cs.lineHeight, inner };
+			}, n);
+			console.log(`A1 box ${n}: ${JSON.stringify(r)}`);
+			expect(r.need).toBeGreaterThan(0);
+			expect(r.box).toBeGreaterThanOrEqual(r.need);
+		}
+	});
+
+	it('A12 guard: two paused views in one tab stay paused after a switch back', async function () {
+		const plainKey = `${BASE}${SEP}Plain`;
+		await setRule(KEY, { props: { 'note.author': { mode: 'clamp', lines: 3 } }, all: { mode: 'core', lines: 3 } });
+		await setRule(plainKey, { props: { 'note.quote': { mode: 'clamp', lines: 2 } }, all: { mode: 'core', lines: 3 } });
+		// Every styled line misfits: as after a core change of the cards layout.
+		await browser.execute(() => {
+			const st = document.createElement('style');
+			st.id = 'bcw-force-mismatch';
+			st.textContent = '.bases-view.bcw-on .bases-cards-property[data-property]:not(.mod-title) > .bases-cards-line { height: 300px !important; }';
+			document.head.appendChild(st);
+		});
+		const switchTo = async (name: string): Promise<boolean> =>
+			browser.executeObsidian(async ({ app }, path, view) => {
+				const leaf = app.workspace.getLeaf(false);
+				await leaf.setViewState({ type: 'bases', state: { file: path, viewName: view } });
+				// Record if the view shows the plan at any time in the next 800 ms.
+				let seen = false;
+				for (let i = 0; i < 40; i++) {
+					const v = document.querySelector('.workspace-leaf.mod-active .bases-view');
+					if (v?.getAttribute('data-view-name') === view && v.classList.contains('bcw-on')) seen = true;
+					await new Promise((r) => setTimeout(r, 20));
+				}
+				return seen;
+			}, BASE, name);
+		try {
+			const paused = async (key: string): Promise<boolean> =>
+				browser.executeObsidian(({ app }, id, k) => (app as unknown as { plugins: { plugins: Record<string, { paused: Set<string> }> } }).plugins.plugins[id]!.paused.has(k), pluginId, key);
+			await openBase();
+			await browser.waitUntil(async () => (await paused(KEY)) && (await probe())?.on === false, { timeout: 5000, timeoutMsg: 'Quotes not paused' });
+			await switchTo('Plain');
+			await browser.waitUntil(async () => (await paused(plainKey)) && (await probe())?.on === false, { timeout: 5000, timeoutMsg: 'Plain not paused' });
+			expect(await switchTo('Quotes')).toBe(false);
+			expect((await probe())!.on).toBe(false);
+		} finally {
+			await browser.execute(() => document.getElementById('bcw-force-mismatch')?.remove());
+			await setRule(plainKey, null);
+			await obsidianPage.openFile(`${DIR}/Reading list.md`);
+		}
+	});
+
+	it('A11 a styled view with no cards does not make other cards views scan on each change', async function () {
+		await browser.executeObsidian(async ({ app }) => {
+			const path = 'Bases Card Wrap/Empty.base';
+			if (!app.vault.getFileByPath(path)) await app.vault.create(path, 'filters:\n  and:\n    - file.inFolder("Bases Card Wrap/Nothing here")\nviews:\n  - type: cards\n    name: Empty\n    order:\n      - file.name\n      - quote\n');
+		});
+		const emptyKey = `${DIR}/Empty.base${SEP}Empty`;
+		await setRule(emptyKey, { props: { 'note.quote': { mode: 'clamp', lines: 3 } }, all: { mode: 'core', lines: 3 } });
+		await openBase();
+		try {
+			await browser.executeObsidian(async ({ app }) => {
+				const leaf = app.workspace.getLeaf('split');
+				await leaf.openFile(app.vault.getFileByPath('Bases Card Wrap/Empty.base')!, { active: false });
+			});
+			// The empty view waits for cards. Its retries end after about 2 s.
+			await browser.pause(3000);
+			const scans = await browser.executeObsidian(async ({ app }, id) => {
+				const plugin = (app as unknown as { plugins: { plugins: Record<string, { scan(): void }> } }).plugins.plugins[id]!;
+				let n = 0;
+				const orig = plugin.scan;
+				plugin.scan = function (this: unknown) {
+					n++;
+					orig.call(this);
+				};
+				try {
+					// Change the card container of the Quotes view (no rule) 20 times, one change each frame, like a scroll.
+					const v = Array.from(document.querySelectorAll<HTMLElement>('.bases-view[data-view-name="Quotes"]')).find((x) => x.offsetParent !== null)!;
+					const box = v.querySelector<HTMLElement>('.bases-cards-container')!;
+					for (let i = 0; i < 20; i++) {
+						const s = box.createSpan();
+						await new Promise((r) => requestAnimationFrame(r));
+						s.remove();
+						await new Promise((r) => requestAnimationFrame(r));
+					}
+					return n;
+				} finally {
+					delete (plugin as { scan?: unknown }).scan;
+				}
+			}, pluginId);
+			expect(scans).toBeLessThanOrEqual(2);
+		} finally {
+			await browser.executeObsidian(({ app }) => {
+				app.workspace.iterateAllLeaves((leaf) => {
+					if (leaf.view.getState().file === 'Bases Card Wrap/Empty.base') leaf.detach();
+				});
+			});
+			await setRule(emptyKey, null);
+		}
+	});
+
+	it('A14 the modal lists a rule of a property that is not on the cards, and delete removes it', async function () {
+		await setRule(KEY, { props: { 'note.oldkey': { mode: 'clamp', lines: 3 }, 'note.quote': { mode: 'clamp', lines: 2 } }, all: { mode: 'core', lines: 3 } });
+		await openBase();
+		await browser.executeObsidianCommand(`${pluginId}:set-view-rule`);
+		await browser.waitUntil(async () => (await browser.$$('.bcw-modal .bcw-orphan-row').length) === 1, { timeout: 5000, timeoutMsg: 'no row for the rule of a property that is not on the cards' });
+		expect(await browser.$$('.bcw-modal .bcw-rule-row').length).toBe(1 + ORDER.length);
+		const text = await browser.execute(() => document.querySelector<HTMLElement>('.bcw-modal .bcw-orphan-row')!.innerText);
+		expect(text).toContain('oldkey');
+		expect(text).toContain('Not on the cards of this view');
+		await browser.execute(() => document.querySelector<HTMLElement>('.bcw-modal .bcw-orphan-row .clickable-icon')!.click());
+		await browser.waitUntil(async () => (await browser.$$('.bcw-modal .bcw-orphan-row').length) === 0, { timeout: 5000, timeoutMsg: 'row not removed' });
+		const views = await browser.executeObsidian(({ app }, id) => {
+			const plugin = (app as unknown as { plugins: { plugins: Record<string, { settings: { views: Record<string, unknown> } }> } }).plugins.plugins[id]!;
+			return plugin.settings.views;
+		}, pluginId);
+		expect(views[KEY]).toEqual({ props: { 'note.quote': { mode: 'clamp', lines: 2 } }, all: { mode: 'core', lines: 3 } });
+		await browser.keys('Escape');
+	});
+
+	it('M1 mobile emulation: clamp 4 wraps the quote and the cards do not overlap (desktop runs the same check)', async function () {
+		const opts = (browser.requestedCapabilities as Record<string, unknown>)['wdio:obsidianOptions'] as { emulateMobile?: boolean } | undefined;
+		const mobile = await browser.executeObsidian(({ obsidian }) => obsidian.Platform.isMobile);
+		expect(mobile).toBe(opts?.emulateMobile === true);
+		await openBase();
+		await setRule(KEY, { props: { 'note.quote': { mode: 'clamp', lines: 4 } }, all: { mode: 'core', lines: 3 } });
+		const p = (await probe())!;
+		expect(p.on).toBe(true);
+		for (const c of p.cards) {
+			const q = c.lines[1]!;
+			expect(q.ws).toBe('normal');
+			expect(Math.abs(q.h - boxOf(p0, q.lh, 4))).toBeLessThanOrEqual(1);
+		}
+		// The long quote really takes more than one line.
+		const seneca = p.cards.find((c) => c.lines[0]!.text.includes('Seneca'))!;
+		expect(seneca.lines[1]!.sh).toBeGreaterThan(p0 + 2);
+		checkGrid(p);
+		console.log(`M1 platform mobile=${String(mobile)} cards=${p.cards.length} quote box=${p.cards[0]!.lines[1]!.h}px`);
+	});
+
 	it('A2 rules work when a theme sets --line-height-tight in px', async function () {
 		await openBase();
 		await browser.execute(() => document.body.style.setProperty('--line-height-tight', '20px'));

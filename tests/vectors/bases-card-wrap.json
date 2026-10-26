@@ -2,7 +2,7 @@
  "slug": "bases-card-wrap",
  "module": "bases-card-wrap/src/rules",
  "function": "viewPlan",
- "note": "Each case names its function in fn. Keys are base path, a NUL character, then the view name. Names that start with a number are acceptance cases of lanes/B3/SPEC.md (A1 to A10 map to 1 to 10). viewPlan gives the classes and CSS variables of one cards view: position 1 is the title, a core property gets bcw-k (one line), clamp gets bcw-c, wrap with scroll gets bcw-s, and --bcw-slot is the largest line count after the title (core gives all properties after the title one shared slot height, measured on a hidden test card). Expected values written by hand from the spec, not from the code.",
+ "note": "Each case names its function in fn. Keys are base path, a NUL character, then the view name. Names that start with a number are acceptance cases of lanes/B3/SPEC.md (A1 to A10 map to 1 to 10). viewPlan gives the classes and CSS variables of one cards view: position 1 is the title, a core property gets bcw-k (one line), clamp gets bcw-c, wrap with scroll gets bcw-s, and --bcw-slot is the largest line count after the title (core gives all properties after the title one shared slot height, measured on a hidden test card). Expected values written by hand from the spec, not from the code. guardStep(fits, firstMiss, now, waitMs) gives the guard step of one view: ok when the cards fit, wait before waitMs after the first miss of that view (null = no miss yet), pause after it.",
  "cases": [
   {
    "name": "2 clamp 4 on the quote gives its own lines and a slot of 4 lines",
@@ -820,6 +820,83 @@
     }
    ],
    "expected": "All properties: 3 lines, scroll, file.name: 1 line, note.quote: 4 lines"
+  },
+  {
+   "name": "3 guard: cards that fit are ok, also after a miss",
+   "fn": "guardStep",
+   "args": [
+    true,
+    1000,
+    1100,
+    500
+   ],
+   "expected": "ok"
+  },
+  {
+   "name": "3 guard: cards that fit with no miss are ok",
+   "fn": "guardStep",
+   "args": [
+    true,
+    null,
+    1000,
+    500
+   ],
+   "expected": "ok"
+  },
+  {
+   "name": "3 guard: the first miss of a view waits",
+   "fn": "guardStep",
+   "args": [
+    false,
+    null,
+    1000,
+    500
+   ],
+   "expected": "wait"
+  },
+  {
+   "name": "3 guard: a view that missed 100 ms ago waits, also when another view's recheck fires now",
+   "fn": "guardStep",
+   "args": [
+    false,
+    1000,
+    1100,
+    500
+   ],
+   "expected": "wait"
+  },
+  {
+   "name": "3 guard: a view that missed 499 ms ago waits",
+   "fn": "guardStep",
+   "args": [
+    false,
+    1000,
+    1499,
+    500
+   ],
+   "expected": "wait"
+  },
+  {
+   "name": "3 guard: a view that still misses 500 ms after its first miss is paused",
+   "fn": "guardStep",
+   "args": [
+    false,
+    1000,
+    1500,
+    500
+   ],
+   "expected": "pause"
+  },
+  {
+   "name": "3 guard: a view that still misses 2 s after its first miss is paused",
+   "fn": "guardStep",
+   "args": [
+    false,
+    1000,
+    3000,
+    500
+   ],
+   "expected": "pause"
   }
  ]
 }
