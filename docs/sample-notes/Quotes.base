@@ -1,0 +1,28 @@
+filters:
+  and:
+    - file.inFolder("Bases Card Wrap/Quotes")
+properties:
+  note.quote:
+    displayName: Quote
+views:
+  - type: cards
+    name: Quotes
+    order:
+      - file.name
+      - quote
+      - author
+      - added
+      - tags
+    sort:
+      - property: added
+        direction: ASC
+  - type: cards
+    name: Plain
+    order:
+      - file.name
+      - quote
+  - type: table
+    name: Table
+    order:
+      - file.name
+      - quote

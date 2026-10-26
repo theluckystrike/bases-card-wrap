@@ -1,0 +1,825 @@
+{
+ "slug": "bases-card-wrap",
+ "module": "bases-card-wrap/src/rules",
+ "function": "viewPlan",
+ "note": "Each case names its function in fn. Keys are base path, a NUL character, then the view name. Names that start with a number are acceptance cases of lanes/B3/SPEC.md (A1 to A10 map to 1 to 10). viewPlan gives the classes and CSS variables of one cards view: position 1 is the title, a core property gets bcw-k (one line), clamp gets bcw-c, wrap with scroll gets bcw-s, and --bcw-slot is the largest line count after the title (core gives all properties after the title one shared slot height, measured on a hidden test card). Expected values written by hand from the spec, not from the code.",
+ "cases": [
+  {
+   "name": "2 clamp 4 on the quote gives its own lines and a slot of 4 lines",
+   "fn": "viewPlan",
+   "args": [
+    {
+     "props": {
+      "note.quote": {
+       "mode": "clamp",
+       "lines": 4
+      }
+     },
+     "all": {
+      "mode": "core",
+      "lines": 3
+     }
+    },
+    [
+     "file.name",
+     "quote",
+     "author"
+    ]
+   ],
+   "expected": {
+    "classes": [
+     "bcw-on",
+     "bcw-k-1",
+     "bcw-c-2",
+     "bcw-k-3"
+    ],
+    "vars": {
+     "--bcw-n-2": "4",
+     "--bcw-slot": "4"
+    }
+   }
+  },
+  {
+   "name": "2 title on 2 lines leaves the other properties at one line",
+   "fn": "viewPlan",
+   "args": [
+    {
+     "props": {
+      "file.name": {
+       "mode": "clamp",
+       "lines": 2
+      }
+     },
+     "all": {
+      "mode": "core",
+      "lines": 3
+     }
+    },
+    [
+     "file.name",
+     "quote"
+    ]
+   ],
+   "expected": {
+    "classes": [
+     "bcw-on",
+     "bcw-c-1",
+     "bcw-k-2"
+    ],
+    "vars": {
+     "--bcw-n-1": "2",
+     "--bcw-slot": "1"
+    }
+   }
+  },
+  {
+   "name": "1 wrap for all properties gives scroll boxes of 3 lines",
+   "fn": "viewPlan",
+   "args": [
+    {
+     "props": {},
+     "all": {
+      "mode": "wrap",
+      "lines": 3
+     }
+    },
+    [
+     "file.name",
+     "quote",
+     "author",
+     "added"
+    ]
+   ],
+   "expected": {
+    "classes": [
+     "bcw-on",
+     "bcw-s-1",
+     "bcw-s-2",
+     "bcw-s-3",
+     "bcw-s-4"
+    ],
+    "vars": {
+     "--bcw-n-1": "3",
+     "--bcw-n-2": "3",
+     "--bcw-n-3": "3",
+     "--bcw-n-4": "3",
+     "--bcw-slot": "3"
+    }
+   }
+  },
+  {
+   "name": "3 the slot is the largest line count after the title, not the title",
+   "fn": "viewPlan",
+   "args": [
+    {
+     "props": {
+      "file.name": {
+       "mode": "clamp",
+       "lines": 6
+      },
+      "note.quote": {
+       "mode": "clamp",
+       "lines": 2
+      },
+      "note.b": {
+       "mode": "wrap",
+       "lines": 5
+      }
+     },
+     "all": {
+      "mode": "core",
+      "lines": 3
+     }
+    },
+    [
+     "file.name",
+     "quote",
+     "a",
+     "b"
+    ]
+   ],
+   "expected": {
+    "classes": [
+     "bcw-on",
+     "bcw-c-1",
+     "bcw-c-2",
+     "bcw-k-3",
+     "bcw-s-4"
+    ],
+    "vars": {
+     "--bcw-n-1": "6",
+     "--bcw-n-2": "2",
+     "--bcw-n-4": "5",
+     "--bcw-slot": "5"
+    }
+   }
+  },
+  {
+   "name": "6 no rule gives no plan",
+   "fn": "viewPlan",
+   "args": [
+    null,
+    [
+     "file.name",
+     "quote"
+    ]
+   ],
+   "expected": null
+  },
+  {
+   "name": "6 rule with only core gives no plan",
+   "fn": "viewPlan",
+   "args": [
+    {
+     "props": {
+      "note.quote": {
+       "mode": "core",
+       "lines": 2
+      }
+     },
+     "all": {
+      "mode": "core",
+      "lines": 3
+     }
+    },
+    [
+     "file.name",
+     "quote"
+    ]
+   ],
+   "expected": null
+  },
+  {
+   "name": "6 view with no properties gives no plan",
+   "fn": "viewPlan",
+   "args": [
+    {
+     "props": {},
+     "all": {
+      "mode": "clamp",
+      "lines": 2
+     }
+    },
+    []
+   ],
+   "expected": null
+  },
+  {
+   "name": "9 plain property id gets the note prefix",
+   "fn": "propId",
+   "args": [
+    "quote"
+   ],
+   "expected": "note.quote"
+  },
+  {
+   "name": "9 file property id stays",
+   "fn": "propId",
+   "args": [
+    "file.name"
+   ],
+   "expected": "file.name"
+  },
+  {
+   "name": "9 formula property id stays",
+   "fn": "propId",
+   "args": [
+    "formula.age"
+   ],
+   "expected": "formula.age"
+  },
+  {
+   "name": "9 plan classes are known",
+   "fn": "isPlanClass",
+   "args": [
+    "bcw-c-12"
+   ],
+   "expected": true
+  },
+  {
+   "name": "9 other classes are not plan classes",
+   "fn": "isPlanClass",
+   "args": [
+    "bases-view"
+   ],
+   "expected": false
+  },
+  {
+   "name": "2 lines 0 becomes 1",
+   "fn": "clampLines",
+   "args": [
+    0
+   ],
+   "expected": 1
+  },
+  {
+   "name": "2 lines 2.6 rounds to 3",
+   "fn": "clampLines",
+   "args": [
+    2.6
+   ],
+   "expected": 3
+  },
+  {
+   "name": "2 lines text 4 becomes 4",
+   "fn": "clampLines",
+   "args": [
+    "4"
+   ],
+   "expected": 4
+  },
+  {
+   "name": "2 lines bad text gives the default 3",
+   "fn": "clampLines",
+   "args": [
+    "many"
+   ],
+   "expected": 3
+  },
+  {
+   "name": "2 lines NaN gives the default 3",
+   "fn": "clampLines",
+   "args": [
+    null
+   ],
+   "expected": 3
+  },
+  {
+   "name": "7 unknown mode in saved data becomes core",
+   "fn": "normalizeRule",
+   "args": [
+    {
+     "mode": "shrink",
+     "lines": 2
+    }
+   ],
+   "expected": {
+    "mode": "core",
+    "lines": 2
+   }
+  },
+  {
+   "name": "7 missing rule becomes core 3",
+   "fn": "normalizeRule",
+   "args": [
+    null
+   ],
+   "expected": {
+    "mode": "core",
+    "lines": 3
+   }
+  },
+  {
+   "name": "7 saved view rule keeps good props and fixes bad ones",
+   "fn": "normalizeViewRule",
+   "args": [
+    {
+     "props": {
+      "note.quote": {
+       "mode": "clamp",
+       "lines": 99
+      },
+      "": {
+       "mode": "wrap"
+      }
+     },
+     "all": {
+      "mode": "wrap"
+     }
+    }
+   ],
+   "expected": {
+    "props": {
+     "note.quote": {
+      "mode": "clamp",
+      "lines": 10
+     }
+    },
+    "all": {
+     "mode": "wrap",
+     "lines": 3
+    }
+   }
+  },
+  {
+   "name": "9 property with own rule uses it",
+   "fn": "propRule",
+   "args": [
+    {
+     "props": {
+      "note.quote": {
+       "mode": "clamp",
+       "lines": 4
+      }
+     },
+     "all": {
+      "mode": "wrap",
+      "lines": 3
+     }
+    },
+    "note.quote"
+   ],
+   "expected": {
+    "mode": "clamp",
+    "lines": 4
+   }
+  },
+  {
+   "name": "9 property without own rule uses all properties",
+   "fn": "propRule",
+   "args": [
+    {
+     "props": {
+      "note.quote": {
+       "mode": "clamp",
+       "lines": 4
+      }
+     },
+     "all": {
+      "mode": "wrap",
+      "lines": 3
+     }
+    },
+    "note.author"
+   ],
+   "expected": {
+    "mode": "wrap",
+    "lines": 3
+   }
+  },
+  {
+   "name": "9 no view rule gives core",
+   "fn": "propRule",
+   "args": [
+    null,
+    "file.name"
+   ],
+   "expected": {
+    "mode": "core",
+    "lines": 3
+   }
+  },
+  {
+   "name": "9 view key joins path and view name",
+   "fn": "viewKey",
+   "args": [
+    "Bases/Quotes.base",
+    "Quotes"
+   ],
+   "expected": "Bases/Quotes.base\u0000Quotes"
+  },
+  {
+   "name": "9 split key gives path and view name",
+   "fn": "splitKey",
+   "args": [
+    "Bases/Quotes.base\u0000My view"
+   ],
+   "expected": {
+    "basePath": "Bases/Quotes.base",
+    "viewName": "My view"
+   }
+  },
+  {
+   "name": "9 split key without separator is null",
+   "fn": "splitKey",
+   "args": [
+    "Quotes.base"
+   ],
+   "expected": null
+  },
+  {
+   "name": "9 own rule of the view applies",
+   "fn": "effectiveRule",
+   "args": [
+    {
+     "Q.base\u0000Quotes": {
+      "props": {},
+      "all": {
+       "mode": "wrap",
+       "lines": 3
+      }
+     }
+    },
+    null,
+    "Q.base",
+    "Quotes",
+    false
+   ],
+   "expected": {
+    "props": {},
+    "all": {
+     "mode": "wrap",
+     "lines": 3
+    }
+   }
+  },
+  {
+   "name": "9 rule of another view does not apply",
+   "fn": "effectiveRule",
+   "args": [
+    {
+     "Q.base\u0000Quotes": {
+      "props": {},
+      "all": {
+       "mode": "wrap",
+       "lines": 3
+      }
+     }
+    },
+    null,
+    "Q.base",
+    "Plain",
+    false
+   ],
+   "expected": null
+  },
+  {
+   "name": "9 rule of another base with the same view name does not apply",
+   "fn": "effectiveRule",
+   "args": [
+    {
+     "Q.base\u0000Quotes": {
+      "props": {},
+      "all": {
+       "mode": "wrap",
+       "lines": 3
+      }
+     }
+    },
+    null,
+    "Other/Q.base",
+    "Quotes",
+    false
+   ],
+   "expected": null
+  },
+  {
+   "name": "9 vault default needs Pro",
+   "fn": "effectiveRule",
+   "args": [
+    {},
+    {
+     "props": {},
+     "all": {
+      "mode": "clamp",
+      "lines": 2
+     }
+    },
+    "Q.base",
+    "Quotes",
+    false
+   ],
+   "expected": null
+  },
+  {
+   "name": "9 vault default applies with Pro when the view has no rule",
+   "fn": "effectiveRule",
+   "args": [
+    {},
+    {
+     "props": {},
+     "all": {
+      "mode": "clamp",
+      "lines": 2
+     }
+    },
+    "Q.base",
+    "Quotes",
+    true
+   ],
+   "expected": {
+    "props": {},
+    "all": {
+     "mode": "clamp",
+     "lines": 2
+    }
+   }
+  },
+  {
+   "name": "9 own rule wins over the vault default",
+   "fn": "effectiveRule",
+   "args": [
+    {
+     "Q.base\u0000Quotes": {
+      "props": {},
+      "all": {
+       "mode": "wrap",
+       "lines": 3
+      }
+     }
+    },
+    {
+     "props": {},
+     "all": {
+      "mode": "clamp",
+      "lines": 2
+     }
+    },
+    "Q.base",
+    "Quotes",
+    true
+   ],
+   "expected": {
+    "props": {},
+    "all": {
+     "mode": "wrap",
+     "lines": 3
+    }
+   }
+  },
+  {
+   "name": "9 own rule with only core modes falls back to the vault default",
+   "fn": "effectiveRule",
+   "args": [
+    {
+     "Q.base\u0000Quotes": {
+      "props": {
+       "note.a": {
+        "mode": "core",
+        "lines": 3
+       }
+      },
+      "all": {
+       "mode": "core",
+       "lines": 3
+      }
+     }
+    },
+    {
+     "props": {},
+     "all": {
+      "mode": "clamp",
+      "lines": 2
+     }
+    },
+    "Q.base",
+    "Quotes",
+    true
+   ],
+   "expected": {
+    "props": {},
+    "all": {
+     "mode": "clamp",
+     "lines": 2
+    }
+   }
+  },
+  {
+   "name": "9 code block without a path uses only the Pro default",
+   "fn": "effectiveRule",
+   "args": [
+    {
+     "Q.base\u0000Inline": {
+      "props": {},
+      "all": {
+       "mode": "wrap",
+       "lines": 3
+      }
+     }
+    },
+    {
+     "props": {},
+     "all": {
+      "mode": "clamp",
+      "lines": 2
+     }
+    },
+    null,
+    "Inline",
+    true
+   ],
+   "expected": {
+    "props": {},
+    "all": {
+     "mode": "clamp",
+     "lines": 2
+    }
+   }
+  },
+  {
+   "name": "9 code block without Pro gets no rule",
+   "fn": "effectiveRule",
+   "args": [
+    {},
+    {
+     "props": {},
+     "all": {
+      "mode": "clamp",
+      "lines": 2
+     }
+    },
+    null,
+    "Inline",
+    false
+   ],
+   "expected": null
+  },
+  {
+   "name": "7 rename of a base moves its keys",
+   "fn": "renameKeys",
+   "args": [
+    {
+     "A/Q.base\u0000V1": 1,
+     "A/Q.base\u0000V2": 2,
+     "B.base\u0000V1": 3
+    },
+    "A/Q.base",
+    "A/Quotes.base"
+   ],
+   "expected": {
+    "B.base\u0000V1": 3,
+    "A/Quotes.base\u0000V1": 1,
+    "A/Quotes.base\u0000V2": 2
+   }
+  },
+  {
+   "name": "7 rename of a folder moves the keys of each base in it",
+   "fn": "renameKeys",
+   "args": [
+    {
+     "A/Q.base\u0000V1": 1,
+     "A/sub/R.base\u0000V1": 2,
+     "AB/Q.base\u0000V1": 3
+    },
+    "A",
+    "Z"
+   ],
+   "expected": {
+    "AB/Q.base\u0000V1": 3,
+    "Z/Q.base\u0000V1": 1,
+    "Z/sub/R.base\u0000V1": 2
+   }
+  },
+  {
+   "name": "7 rename of an unrelated file changes nothing",
+   "fn": "renameKeys",
+   "args": [
+    {
+     "A/Q.base\u0000V1": 1
+    },
+    "A/Q.md",
+    "A/R.md"
+   ],
+   "expected": {
+    "A/Q.base\u0000V1": 1
+   }
+  },
+  {
+   "name": "7 rename onto a name with a rule replaces that rule",
+   "fn": "renameKeys",
+   "args": [
+    {
+     "Q.base\u0000V1": 1,
+     "R.base\u0000V1": 2
+    },
+    "Q.base",
+    "R.base"
+   ],
+   "expected": {
+    "R.base\u0000V1": 1
+   }
+  },
+  {
+   "name": "7 rename of a view moves its rule",
+   "fn": "renameView",
+   "args": [
+    {
+     "Q.base\u0000Old": 1,
+     "Q.base\u0000Other": 2
+    },
+    "Q.base",
+    "Old",
+    "New"
+   ],
+   "expected": {
+    "Q.base\u0000Other": 2,
+    "Q.base\u0000New": 1
+   }
+  },
+  {
+   "name": "4 embed with a view name gives the view",
+   "fn": "embedViewName",
+   "args": [
+    "Quotes.base#Quotes"
+   ],
+   "expected": "Quotes"
+  },
+  {
+   "name": "4 embed without a view name gives null",
+   "fn": "embedViewName",
+   "args": [
+    "Quotes.base"
+   ],
+   "expected": null
+  },
+  {
+   "name": "4 embed link path drops the view name",
+   "fn": "embedLinkPath",
+   "args": [
+    "Bases/Quotes.base#My view"
+   ],
+   "expected": "Bases/Quotes.base"
+  },
+  {
+   "name": "9 empty rule is empty",
+   "fn": "isEmptyRule",
+   "args": [
+    {
+     "props": {
+      "note.a": {
+       "mode": "core",
+       "lines": 2
+      }
+     },
+     "all": {
+      "mode": "core",
+      "lines": 3
+     }
+    }
+   ],
+   "expected": true
+  },
+  {
+   "name": "9 rule with one wrap is not empty",
+   "fn": "isEmptyRule",
+   "args": [
+    {
+     "props": {
+      "note.a": {
+       "mode": "wrap",
+       "lines": 2
+      }
+     },
+     "all": {
+      "mode": "core",
+      "lines": 3
+     }
+    }
+   ],
+   "expected": false
+  },
+  {
+   "name": "9 describe lists all properties and the exceptions",
+   "fn": "describeRule",
+   "args": [
+    {
+     "props": {
+      "note.quote": {
+       "mode": "clamp",
+       "lines": 4
+      },
+      "file.name": {
+       "mode": "clamp",
+       "lines": 1
+      }
+     },
+     "all": {
+      "mode": "wrap",
+      "lines": 3
+     }
+    }
+   ],
+   "expected": "All properties: 3 lines, scroll, file.name: 1 line, note.quote: 4 lines"
+  }
+ ]
+}

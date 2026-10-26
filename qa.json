@@ -1,0 +1,73 @@
+[
+	{
+		"feature": "without-plugin",
+		"caption": "Without a rule, the core cards view cuts each quote off after one line.",
+		"note": "Quotes.base",
+		"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', null); for (let i=0;i<40 && !document.querySelector('.workspace-leaf.mod-active .bases-cards-item');i++) await new Promise(r=>setTimeout(r,100)); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+		"wait": 700
+	},
+	{
+		"feature": "clamp-lines",
+		"caption": "The title on 2 lines and the quote on 4 lines, with an ellipsis at the cut. Each property after the title gets the same space, and all cards keep one height.",
+		"note": "Quotes.base",
+		"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"file.name\": {\"mode\": \"clamp\", \"lines\": 2}, \"note.quote\": {\"mode\": \"clamp\", \"lines\": 4}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); for (let i=0;i<40 && !document.querySelector('.workspace-leaf.mod-active .bases-cards-item');i++) await new Promise(r=>setTimeout(r,100)); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+		"wait": 700
+	},
+	{
+		"feature": "full-value",
+		"caption": "The quote wraps to the end of the value in a box of up to 10 lines.",
+		"note": "Quotes.base",
+		"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"file.name\": {\"mode\": \"clamp\", \"lines\": 2}, \"note.quote\": {\"mode\": \"wrap\", \"lines\": 10}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); for (let i=0;i<40 && !document.querySelector('.workspace-leaf.mod-active .bases-cards-item');i++) await new Promise(r=>setTimeout(r,100)); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+		"wait": 700
+	},
+	{
+		"feature": "rule-modal",
+		"caption": "The command Set card wrap for this view opens one row for all properties and one row for each property of the view.",
+		"note": "Quotes.base",
+		"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"file.name\": {\"mode\": \"clamp\", \"lines\": 2}, \"note.quote\": {\"mode\": \"clamp\", \"lines\": 4}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); app.commands.executeCommandById('bases-card-wrap:set-view-rule'); for (let i=0;i<40 && !document.querySelector('.bcw-modal .bcw-rule-row');i++) await new Promise(r=>setTimeout(r,100)); if (!document.querySelector('.bcw-modal .bcw-rule-row')) throw new Error('no modal'); return 'ok'; })()",
+		"after": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); return 'ok'; })()",
+		"wait": 700
+	},
+	{
+		"feature": "embedded-base",
+		"caption": "The same rule applies where the base is embedded in a note, in Reading view and Live Preview.",
+		"note": "Reading list.md",
+		"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"file.name\": {\"mode\": \"clamp\", \"lines\": 2}, \"note.quote\": {\"mode\": \"clamp\", \"lines\": 4}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); const l=app.workspace.getLeaf(false); const s=l.getViewState(); await l.setViewState({...s,state:{...s.state,mode:'preview'}}); for (let i=0;i<60 && !document.querySelector('.workspace-leaf.mod-active .bases-view.bcw-on');i++) await new Promise(r=>setTimeout(r,100)); if (!document.querySelector('.workspace-leaf.mod-active .bases-view.bcw-on')) throw new Error('embed has no rule'); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+		"wait": 700
+	},
+	{
+		"feature": "settings",
+		"caption": "The settings list each view that has a rule. Select a row to edit it, or delete it.",
+		"note": "Quotes.base",
+		"eval": "(async () => { const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"file.name\": {\"mode\": \"clamp\", \"lines\": 2}, \"note.quote\": {\"mode\": \"clamp\", \"lines\": 4}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); app.setting.open(); app.setting.openTabById('bases-card-wrap'); await new Promise(r=>setTimeout(r,800)); return 'ok'; })()",
+		"after": "(async () => { app.setting.close(); return 'ok'; })()",
+		"wait": 700
+	},
+	{
+		"feature": "card-wrap",
+		"caption": "One view goes from the core one-line look to 2 lines, 4 lines and the full value.",
+		"frames": [
+			{
+				"note": "Quotes.base",
+				"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', null); for (let i=0;i<40 && !document.querySelector('.workspace-leaf.mod-active .bases-cards-item');i++) await new Promise(r=>setTimeout(r,100)); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+				"wait": 500,
+				"hold": 1800
+			},
+			{
+				"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"note.quote\": {\"mode\": \"clamp\", \"lines\": 2}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); for (let i=0;i<40 && !document.querySelector('.workspace-leaf.mod-active .bases-cards-item');i++) await new Promise(r=>setTimeout(r,100)); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+				"wait": 400,
+				"hold": 1800
+			},
+			{
+				"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"file.name\": {\"mode\": \"clamp\", \"lines\": 2}, \"note.quote\": {\"mode\": \"clamp\", \"lines\": 4}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); for (let i=0;i<40 && !document.querySelector('.workspace-leaf.mod-active .bases-cards-item');i++) await new Promise(r=>setTimeout(r,100)); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+				"wait": 400,
+				"hold": 1800
+			},
+			{
+				"eval": "(async () => { document.querySelectorAll('.modal-container').forEach(el => el.remove()); const pl=app.plugins.plugins['bases-card-wrap']; await pl.setViewRule('Bases Card Wrap/Quotes.base\\u0000Quotes', {\"props\": {\"file.name\": {\"mode\": \"clamp\", \"lines\": 2}, \"note.quote\": {\"mode\": \"wrap\", \"lines\": 10}}, \"all\": {\"mode\": \"core\", \"lines\": 3}}); for (let i=0;i<40 && !document.querySelector('.workspace-leaf.mod-active .bases-cards-item');i++) await new Promise(r=>setTimeout(r,100)); await new Promise(r=>setTimeout(r,600)); return 'ok'; })()",
+				"wait": 400,
+				"hold": 2400
+			}
+		]
+	}
+]

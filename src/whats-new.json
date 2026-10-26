@@ -1,0 +1,25 @@
+{
+	"id": "bases-card-wrap",
+	"name": "Bases Card Wrap",
+	"version": "1.0.0",
+	"changes": [],
+	"tip": "Open a base in cards view and run the command \"Set card wrap for this view\". Each view of each base keeps its own rule.",
+	"thanks": "Hi, I am Michael, a solo developer in Poland. Bases Card Wrap is one of over 100 small plugins that I make. Thank you for trusting it with your notes.",
+	"related": [
+		{
+			"id": "bases-freeze-panes",
+			"name": "Bases Freeze Panes",
+			"blurb": "Keep the header and first column of a Bases table in view."
+		},
+		{
+			"id": "pdf-cover-cards",
+			"name": "PDF Cover Cards",
+			"blurb": "Show the first page of a linked PDF as the card cover."
+		},
+		{
+			"id": "bases-filter-switches",
+			"name": "Bases Filter Switches",
+			"blurb": "Turn saved filters on and off with one click above a base."
+		}
+	]
+}
