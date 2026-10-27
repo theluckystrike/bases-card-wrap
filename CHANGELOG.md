@@ -1,5 +1,11 @@
 # bases-card-wrap
 
+## 1.0.2
+
+### Patch Changes
+
+- 05c5357: The Vault default setting now shows how to get Pro, with a Sponsor on GitHub button, when you select it without Pro. The rules for each view stay free.
+
 ## 1.0.1
 
 ### Patch Changes

@@ -76,7 +76,6 @@ export class BasesCardWrapSettingTab extends PluginSettingTab {
 					? `Pro. The rule of each cards view that has no rule of its own, also in base code blocks. Now: ${this.plugin.settings.vaultDefault ? describeRule(this.plugin.settings.vaultDefault) : 'not set'}.`
 					: 'Pro. A rule for each cards view that has no rule of its own, also in base code blocks. The free version sets a rule for each view.',
 				action: () => this.plugin.openDefaultModal(),
-				disabled: () => !isPro(),
 			},
 			// The Pro group comes after the settings of the plugin.
 			...(this.plugin.pro ? sponsorsSettingItems(this.plugin.pro, PRO_UI) : []),

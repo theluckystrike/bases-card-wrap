@@ -2,7 +2,7 @@ import { FileView, Notice, Plugin, TFile, TFolder, parseYaml, type WorkspaceLeaf
 import type { SponsorsManager } from './license/index';
 import { createGitHubSponsors } from './license/github-obsidian';
 import { setupHello } from './hello/index';
-import { SPONSORS, bindPro, isPro, onProChange, resetPro } from './pro';
+import { PRO_DEFAULT, SPONSORS, bindPro, isPro, onProChange, proNotice, resetPro } from './pro';
 import { DEFAULT_SETTINGS, BasesCardWrapSettingTab, normalizeSettings, type BasesCardWrapSettings } from './settings';
 import { RuleModal } from './modal';
 import { effectiveRule, embedLinkPath, guardStep, isEmptyRule, isPlanClass, propId, renameKeys, renameView, viewKey, viewPlan, type ViewPlan, type ViewRule } from './rules';
@@ -229,7 +229,8 @@ export default class BasesCardWrapPlugin extends Plugin {
 
 	/** Pro: edits the vault default rule. */
 	openDefaultModal(): void {
-		if (!isPro()) return;
+		// A free user gets the shared Pro notice. No rule window opens.
+		if (!isPro()) { proNotice(PRO_DEFAULT); return; }
 		new RuleModal(this.app, {
 			title: 'Card wrap: vault default',
 			props: [],

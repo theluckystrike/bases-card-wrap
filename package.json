@@ -1,6 +1,6 @@
 {
 	"name": "bases-card-wrap",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"private": true,
 	"description": "Wraps long property values in Bases card views onto more lines, or clamps them to a set number of lines, for each base and view.",
 	"main": "main.js",
