@@ -129,6 +129,7 @@ export default class BasesCardWrapPlugin extends Plugin {
 			// A theme or font size change can change the text width with the same view width.
 			this.registerEvent(this.app.workspace.on('css-change', () => this.resetLater(this.touched)));
 			this.registerEvent(this.app.workspace.on('window-open', (_w, win) => this.observe(win.document)));
+			this.registerEvent(this.app.workspace.on('window-close', (_w, win) => this.closeWindow(win)));
 			this.schedule();
 		});
 	}
@@ -307,7 +308,13 @@ export default class BasesCardWrapPlugin extends Plugin {
 				if (!seen.has(el)) changed = this.applyPlan(el, null) || changed;
 			}
 		}
-		for (const el of this.touched) if (!el.isConnected) this.touched.delete(el);
+		for (const el of this.touched) {
+			if (el.isConnected) continue;
+			// A detached view: stop the width watch, so that the observer does not keep the old view in memory.
+			this.touched.delete(el);
+			for (const ro of this.resizeObservers.values()) ro.unobserve(el);
+			this.widths.delete(el);
+		}
 		if (changed) this.app.workspace.trigger('css-change');
 		// Core lays the cards out again on css-change. Check each styled view that is not checked yet in the next frame.
 		let waiting = false;
@@ -501,6 +508,12 @@ export default class BasesCardWrapPlugin extends Plugin {
 		return true;
 	}
 
+	/** A popout window closed: stop its width observer and remove it, so that the map does not keep the window. */
+	private closeWindow(win: Window): void {
+		this.resizeObservers.get(win)?.disconnect();
+		this.resizeObservers.delete(win);
+	}
+
 	/** Watches the width of a styled view. A new width gives a scrollbar reset after the burst. */
 	private watchWidth(el: HTMLElement): void {
 		const win = el.win;
@@ -582,12 +595,17 @@ export default class BasesCardWrapPlugin extends Plugin {
 
 /**
  * A scroll box keeps its scrollbar when it grows or gets wider (both layouts are stable). One layout with no scrollbar
- * resets it: the views get the class bcw-relayout for one forced layout.
+ * resets it: the views get the class bcw-relayout for one forced layout in each document.
  */
-function resetScrollbars(views: HTMLElement[]): void {
+export function resetScrollbars(views: HTMLElement[]): void {
 	if (views.length === 0) return;
-	for (const el of views) el.addClass('bcw-relayout');
-	void views[0]!.offsetHeight;
+	// The views can be in more than one window. Force one layout in each document.
+	const first = new Map<Document, HTMLElement>();
+	for (const el of views) {
+		el.addClass('bcw-relayout');
+		if (!first.has(el.doc)) first.set(el.doc, el);
+	}
+	for (const el of first.values()) void el.offsetHeight;
 	for (const el of views) el.removeClass('bcw-relayout');
 }
 

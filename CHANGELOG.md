@@ -1,5 +1,11 @@
 # bases-card-wrap
 
+## 1.0.3
+
+### Patch Changes
+
+- 4821bc2: The plugin no longer keeps a closed cards view or a closed popout window in memory. A theme or font change now resets the scrollbars of the wrap boxes in a popout window too.
+
 ## 1.0.2
 
 ### Patch Changes

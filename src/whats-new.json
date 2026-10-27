@@ -1,9 +1,10 @@
 {
 	"id": "bases-card-wrap",
 	"name": "Bases Card Wrap",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"changes": [
-		"The Vault default setting now shows how to get Pro, with a Sponsor on GitHub button, when you select it without Pro. The rules for each view stay free."
+		"The plugin no longer keeps a closed cards view or a closed popout window in memory.",
+		"A theme or font change now resets the scrollbars of the wrap boxes in a popout window too."
 	],
 	"tip": "Open a base in cards view and run the command \"Set card wrap for this view\". Each view of each base keeps its own rule.",
 	"thanks": "Hi, I am Michael, a solo developer in Poland. Bases Card Wrap is one of over 100 small plugins that I make. Thank you for trusting it with your notes.",
