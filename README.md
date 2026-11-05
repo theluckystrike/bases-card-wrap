@@ -71,13 +71,13 @@ A property row can also say "Same as all properties". Then the property uses the
 ## Settings
 
 - Saved views: one row for each view with a rule. The row shows the base file, the view name and the rule. Select the row to edit it. Delete the row to remove the rule.
-- Vault default (Pro): the rule for each cards view that has no rule of its own, also in base code blocks.
+- Vault default (Pro): the rule for each cards view that has no rule of its own.
 
 The plugin keeps the rules in its own data file in your vault, under the base path and the view name. When you rename or move a base file or its folder, the rule moves with it. When you rename a view in the base, the rule moves to the new name.
 
 ## Pro
 
-Pro adds a vault default rule. It applies to each cards view that has no rule of its own, in each base file and in each base code block. A base code block has no file, so the free rules for each view do not reach it.
+Pro adds a vault default rule. It applies to each cards view that has no rule of its own, also in base code blocks. A base code block has no file, so the free rules for each view do not reach it.
 
 ## FAQ
 
@@ -108,6 +108,8 @@ The snippets in the forum topic change the title of every base. This plugin sets
 ## Payment, account and network
 
 The core features are free. Pro features need a GitHub Sponsors sponsorship of theluckystrike: $5 a month or more, or $15 once. A total payment of $15 meets the payment requirement for Pro without further payment. Sign-in and the checks below still apply. Your notes stay readable and editable with or without Pro.
+
+[One payment turns on Pro in every NoteMods plugin](https://notemods.com/pro/).
 
 GitHub handles the payment. Sponsor at https://github.com/sponsors/theluckystrike?frequency=one-time&metadata_source=bases-card-wrap. You need no account for the free features. Pro needs the GitHub account that sponsors.
 
