@@ -8,7 +8,7 @@ import manifest from '../manifest.json';
 
 // A free user can select the Vault default row of the settings. The select shows the shared Pro notice with the
 // "Sponsor on GitHub" button. No rule window opens and nothing is saved.
-const PITCH = 'Sponsor on GitHub, then sign in from the plugin settings.';
+const PITCH = 'One payment turns on Pro in every NoteMods plugin. Sponsor on GitHub, then sign in from the plugin settings.';
 
 function fakePro(pro: boolean): SponsorsManager {
 	return {
