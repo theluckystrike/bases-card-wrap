@@ -125,7 +125,7 @@ export default class BasesCardWrapPlugin extends Plugin {
 			if (this.unloaded) return;
 			void pro.refresh();
 			this.registerInterval(window.setInterval(() => void pro.refresh(), PRO_TICK_MS));
-			this.observe(document);
+			this.observe(this.app.workspace.containerEl.doc);
 			// A theme or font size change can change the text width with the same view width.
 			this.registerEvent(this.app.workspace.on('css-change', () => this.resetLater(this.touched)));
 			this.registerEvent(this.app.workspace.on('window-open', (_w, win) => this.observe(win.document)));
@@ -292,7 +292,7 @@ export default class BasesCardWrapPlugin extends Plugin {
 		if (this.unloaded) return;
 		// No rule and nothing styled: skip the DOM queries (each key press in an editor can schedule a scan).
 		if (this.touched.size === 0 && Object.keys(this.settings.views).length === 0 && !(isPro() && this.settings.vaultDefault)) return;
-		const docs = new Set<Document>([document]);
+		const docs = new Set<Document>([this.app.workspace.containerEl.doc]);
 		this.app.workspace.iterateAllLeaves((leaf) => {
 			docs.add(leaf.view.containerEl.doc);
 		});
